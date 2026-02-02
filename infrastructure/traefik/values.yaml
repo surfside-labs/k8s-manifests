@@ -1,8 +1,9 @@
 # Traefik Custom Configuration
-# HTTPS on port 80, no port 443
-# Tailscale-friendly setup
+# DaemonSet with hostNetwork for port-free HTTPS (standard ports 80/443)
+# Multi-node compatible configuration
 
 deployment:
+  kind: DaemonSet
   podAnnotations:
     prometheus.io/port: "8082"
     prometheus.io/scrape: "true"
@@ -25,23 +26,34 @@ tolerations:
   operator: "Exists"
   effect: "NoSchedule"
 
+# Enable host network for direct port binding
+hostNetwork: true
+dnsPolicy: ClusterFirstWithHostNet
+
 service:
+  type: ClusterIP
   ipFamilyPolicy: "PreferDualStack"
 
-# Custom entry points - HTTPS on port 80
+# Security context for binding privileged ports
+securityContext:
+  capabilities:
+    add:
+      - NET_BIND_SERVICE
+
+# Standard ports configuration with host binding
 ports:
   web:
-    # Disable standard HTTP on port 80
     port: 8000
-    expose:
-      default: false
-    exposedPort: 8000
-  websecure:
-    # HTTPS on port 80 instead of 443
-    port: 8443
     expose:
       default: true
     exposedPort: 80
+    hostPort: 80
+  websecure:
+    port: 8443
+    expose:
+      default: true
+    exposedPort: 443
+    hostPort: 443
     http3:
       enabled: false
     tls:
@@ -50,8 +62,3 @@ ports:
     port: 9000
     expose:
       default: false
-
-# Configure entry point addresses
-additionalArguments:
-  - "--entrypoints.websecure.address=:8443"
-  - "--entrypoints.websecure.http.tls=true"
