@@ -1,0 +1,91 @@
+---
+# OpenClaw Production Ingress for Traefik  
+# Access: https://openclaw.surfside-labs.com (via Tailscale)
+#
+# Routes:
+# - / → Gateway API (port 18789)
+# - /bridge → Bridge API (port 18790)
+
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: openclaw-https
+  namespace: openclaw
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  entryPoints:
+    - websecure  # Port 443
+  routes:
+    # Bridge API (specific path, higher priority)
+    - kind: Rule
+      match: Host(`openclaw.surfside-labs.com`) && PathPrefix(`/bridge`)
+      priority: 20
+      services:
+        - name: openclaw
+          port: 18790
+    # Gateway API (catch-all)
+    - kind: Rule
+      match: Host(`openclaw.surfside-labs.com`)
+      priority: 10
+      services:
+        - name: openclaw
+          port: 18789
+  tls:
+    secretName: openclaw-tls-prod
+    options:
+      name: openclaw-tls
+---
+# HTTP to HTTPS redirect
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: openclaw-http
+  namespace: openclaw
+spec:
+  entryPoints:
+    - web  # Port 80
+  routes:
+    - kind: Rule
+      match: Host(`openclaw.surfside-labs.com`)
+      services:
+        - name: openclaw
+          port: 18789
+      middlewares:
+        - name: https-redirect
+---
+# HTTPS redirect middleware
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: https-redirect
+  namespace: openclaw
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+---
+# TLS options
+apiVersion: traefik.io/v1alpha1
+kind: TLSOption
+metadata:
+  name: openclaw-tls
+  namespace: openclaw
+spec:
+  minVersion: VersionTLS12
+  cipherSuites:
+    - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+    - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305
+  sniStrict: false
+---
+# Rate limiting middleware (optional security)
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: rate-limit
+  namespace: openclaw
+spec:
+  rateLimit:
+    average: 100
+    burst: 50

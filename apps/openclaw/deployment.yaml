@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: openclaw
+  name: openclaw
+  namespace: openclaw
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: openclaw
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: openclaw
+    spec:
+      containers:
+      - env:
+        - name: NODE_ENV
+          value: production
+        - name: LOG_LEVEL
+          value: info
+        - name: PORT_GATEWAY
+          value: "18789"
+        - name: PORT_BRIDGE
+          value: "18790"
+        envFrom:
+        - secretRef:
+            name: openclaw-secrets
+        image: ghcr.io/surfside-labs/openclaw:681035b949517e1fd8df9327e7f8137d461e74aa
+        imagePullPolicy: Always
+        livenessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /health
+            port: 18789
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        name: openclaw
+        ports:
+        - containerPort: 18789
+          name: http
+          protocol: TCP
+        - containerPort: 18790
+          name: port-1
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /health
+            port: 18789
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: "1"
+            memory: 2Gi
+          requests:
+            cpu: 250m
+            memory: 512Mi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /home/node/.openclaw/config
+          name: config
+        - mountPath: /home/node/.openclaw/workspace
+          name: workspace
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+      - name: regcred
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: openclaw-config
+      - name: workspace
+        persistentVolumeClaim:
+          claimName: openclaw-workspace

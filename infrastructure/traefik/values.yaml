@@ -1,0 +1,57 @@
+# Traefik Custom Configuration
+# HTTPS on port 80, no port 443
+# Tailscale-friendly setup
+
+deployment:
+  podAnnotations:
+    prometheus.io/port: "8082"
+    prometheus.io/scrape: "true"
+
+providers:
+  kubernetesIngress:
+    publishedService:
+      enabled: true
+
+priorityClassName: "system-cluster-critical"
+
+image:
+  repository: "rancher/mirrored-library-traefik"
+  tag: "3.5.1"
+
+tolerations:
+- key: "CriticalAddonsOnly"
+  operator: "Exists"
+- key: "node-role.kubernetes.io/control-plane"
+  operator: "Exists"
+  effect: "NoSchedule"
+
+service:
+  ipFamilyPolicy: "PreferDualStack"
+
+# Custom entry points - HTTPS on port 80
+ports:
+  web:
+    # Disable standard HTTP on port 80
+    port: 8000
+    expose:
+      default: false
+    exposedPort: 8000
+  websecure:
+    # HTTPS on port 80 instead of 443
+    port: 8443
+    expose:
+      default: true
+    exposedPort: 80
+    http3:
+      enabled: false
+    tls:
+      enabled: true
+  traefik:
+    port: 9000
+    expose:
+      default: false
+
+# Configure entry point addresses
+additionalArguments:
+  - "--entrypoints.websecure.address=:8443"
+  - "--entrypoints.websecure.http.tls=true"

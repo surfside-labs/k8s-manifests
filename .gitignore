@@ -1,0 +1,39 @@
+# Do not commit secrets to version control!
+# These files should be managed outside of Git
+
+# Kubernetes secrets
+*-secret.yaml
+*-secrets.yaml
+secret-*.yaml
+secrets-*.yaml
+
+# TLS certificates and keys
+*.key
+*.crt
+*.pem
+*.p12
+*.pfx
+
+# Environment files
+.env
+.env.*
+*.env
+
+# Helm values with secrets
+*-secrets.values.yaml
+values-secret*.yaml
+
+# Temporary files
+*.tmp
+*.swp
+*~
+.DS_Store
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# Backup files
+*.bak
+*.backup

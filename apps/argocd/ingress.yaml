@@ -1,0 +1,72 @@
+---
+# ArgoCD Production Ingress for Traefik
+# Access: https://argocd.surfside-labs.com (via Tailscale)
+# 
+# This uses Traefik's native IngressRoute CRD for better control
+# and works with K3s built-in Traefik
+
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: argocd-server-https
+  namespace: argocd
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  entryPoints:
+    - websecure  # Port 443
+  routes:
+    - kind: Rule
+      match: Host(`argocd.surfside-labs.com`)
+      priority: 10
+      services:
+        - name: argocd-server
+          port: 80
+          # Use HTTP backend - TLS is terminated at Traefik
+  tls:
+    secretName: argocd-server-tls-prod
+    options:
+      name: argocd-tls
+---
+# HTTP to HTTPS redirect
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: argocd-server-http
+  namespace: argocd
+spec:
+  entryPoints:
+    - web  # Port 80
+  routes:
+    - kind: Rule
+      match: Host(`argocd.surfside-labs.com`)
+      services:
+        - name: argocd-server
+          port: 80
+      middlewares:
+        - name: https-redirect
+---
+# HTTPS redirect middleware
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: https-redirect
+  namespace: argocd
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+---
+# TLS options
+apiVersion: traefik.io/v1alpha1
+kind: TLSOption
+metadata:
+  name: argocd-tls
+  namespace: argocd
+spec:
+  minVersion: VersionTLS12
+  cipherSuites:
+    - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+    - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305
+  sniStrict: false
