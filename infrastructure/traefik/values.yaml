@@ -36,10 +36,20 @@ service:
   ipFamilyPolicy: "PreferDualStack"
 
 # Security context for binding privileged ports
+# Note: Running as root is required for hostNetwork with privileged ports
+podSecurityContext:
+  runAsUser: 0
+  runAsGroup: 0
+  runAsNonRoot: false
+
 securityContext:
   capabilities:
     add:
       - NET_BIND_SERVICE
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
 
 # Standard ports configuration with host binding
 # Note: With hostNetwork, hostPort must match containerPort
