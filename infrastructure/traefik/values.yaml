@@ -1,9 +1,10 @@
 # Traefik Custom Configuration
-# DaemonSet with hostNetwork for port-free HTTPS (standard ports 80/443)
-# Multi-node compatible configuration
+# Deployment with hostNetwork for port-free HTTPS (standard ports 80/443)
+# Note: Using Deployment instead of DaemonSet for single-node cluster
+# The Traefik Helm chart requires maxUnavailable > 1 for DaemonSet with hostNetwork
 
 deployment:
-  kind: DaemonSet
+  replicas: 1
   podAnnotations:
     prometheus.io/port: "8082"
     prometheus.io/scrape: "true"
