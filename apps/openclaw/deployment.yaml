@@ -32,7 +32,7 @@ spec:
         envFrom:
         - secretRef:
             name: openclaw-secrets
-        image: ghcr.io/surfside-labs/openclaw:main-82129e8
+        image: ghcr.io/surfside-labs/openclaw:main-94730a3
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 10
