@@ -20,6 +20,9 @@ spec:
       valuesObject:
         githubConfigUrl: https://github.com/surfside-labs
         githubConfigSecret: arc-github-app
+        controllerServiceAccount:
+          name: infra-arc-gha-rs-controller
+          namespace: arc-system
         minRunners: 1
         maxRunners: 4
         containerMode:
