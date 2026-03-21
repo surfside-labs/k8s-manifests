@@ -1,6 +1,6 @@
-# ArgoCD config resources (ingress, projects) — managed by ArgoCD itself
+# ArgoCD config resources (ingress, projects) — managed by ArgoCD itself.
 # infrastructure-appset discovers this file and creates an Application that applies
-# the infra-argocd-config Application, which in turn syncs this entire directory.
+# the infra-argocd-config Application, which syncs infrastructure/argocd/config/.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: https://github.com/surfside-labs/k8s-manifests
     targetRevision: main
-    path: infrastructure/argocd
+    path: infrastructure/argocd/config
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
