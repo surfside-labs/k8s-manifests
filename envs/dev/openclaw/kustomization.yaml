@@ -7,6 +7,7 @@ resources:
   - ../../../base/openclaw
   - ingress.yaml
   - regcred-sealed.yaml
+  - openclaw-secrets-sealed.yaml
 
 images:
   - name: ghcr.io/surfside-labs/openclaw
