@@ -6,6 +6,7 @@ namespace: dev
 resources:
   - ../../../base/openclaw
   - ingress.yaml
+  - ../../../secrets/dev/regcred-sealed.yaml
 
 images:
   - name: ghcr.io/surfside-labs/openclaw

@@ -15,7 +15,7 @@
 set -euo pipefail
 
 CONTROLLER_NS=sealed-secrets
-CONTROLLER_NAME=sealed-secrets
+CONTROLLER_NAME=infra-sealed-secrets
 
 seal() {
   local namespace="$1"
