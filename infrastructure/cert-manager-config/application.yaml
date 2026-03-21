@@ -1,0 +1,27 @@
+# ClusterIssuers for cert-manager — applied after cert-manager Helm chart is ready.
+# infrastructure-appset discovers this and creates an Application that applies
+# infra-cert-manager-config, which syncs the clusterissuers directory.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: infra-cert-manager-config
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/surfside-labs/k8s-manifests
+    targetRevision: main
+    path: infrastructure/cert-manager/clusterissuers
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
