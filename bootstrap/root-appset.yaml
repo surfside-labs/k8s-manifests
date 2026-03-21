@@ -1,35 +1,26 @@
-# Bootstrap: Root ApplicationSet — "App of Apps"
+# Bootstrap: Root Application — "App of Apps" entry point
 # Apply once after ArgoCD is running:
 #   kubectl apply -f bootstrap/root-appset.yaml
-# After this, ArgoCD manages everything from Git.
+# ArgoCD then manages all ApplicationSets (and their child Applications) from Git.
 apiVersion: argoproj.io/v1alpha1
-kind: ApplicationSet
+kind: Application
 metadata:
   name: root
   namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
-  goTemplate: true
-  generators:
-    - git:
-        repoURL: https://github.com/surfside-labs/k8s-manifests
-        revision: main
-        directories:
-          - path: argocd-appsets/*
-  template:
-    metadata:
-      name: '{{ .path.basename }}'
-    spec:
-      project: default
-      source:
-        repoURL: https://github.com/surfside-labs/k8s-manifests
-        targetRevision: main
-        path: '{{ .path.path }}'
-      destination:
-        server: https://kubernetes.default.svc
-        namespace: argocd
-      syncPolicy:
-        automated:
-          prune: true
-          selfHeal: true
-        syncOptions:
-          - CreateNamespace=true
+  project: default
+  source:
+    repoURL: https://github.com/surfside-labs/k8s-manifests
+    targetRevision: main
+    path: argocd-appsets
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
