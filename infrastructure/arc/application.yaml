@@ -1,0 +1,31 @@
+# Actions Runner Controller — installed after GitHub App/PAT is configured
+# See: docs/DevOps/Runner Strategy.md for setup steps
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: infra-arc
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://actions-runner-controller.github.io/actions-runner-controller
+    chart: gha-runner-scale-set-controller
+    targetRevision: 0.10.1
+    helm:
+      valuesObject:
+        resources:
+          requests:
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: arc-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

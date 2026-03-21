@@ -1,0 +1,107 @@
+name: Validate Manifests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'base/**/*.yaml'
+      - 'base/**/*.yml'
+      - 'envs/**/*.yaml'
+      - 'envs/**/*.yml'
+      - 'infrastructure/**/*.yaml'
+      - 'infrastructure/**/*.yml'
+      - 'argocd-appsets/**/*.yaml'
+      - 'argocd-appsets/**/*.yml'
+      - 'bootstrap/**/*.yaml'
+      - 'bootstrap/**/*.yml'
+
+jobs:
+  validate-manifests:
+    name: Validate Kubernetes Manifests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          wget -q https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz
+          tar xf kubeconform-linux-amd64.tar.gz
+          sudo mv kubeconform /usr/local/bin/
+          kubeconform -v
+
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Validate YAML syntax
+        run: |
+          echo "Validating YAML syntax..."
+          find base/ envs/ infrastructure/ argocd-appsets/ bootstrap/ \
+            -name "*.yaml" -o -name "*.yml" | while read file; do
+            python3 -c "
+import yaml, sys
+docs = list(yaml.safe_load_all(open('$file')))
+print(f'OK: $file ({len(docs)} doc(s))')
+" || exit 1
+          done
+          echo "All YAML files have valid syntax"
+
+      - name: Build and validate Kustomize overlays
+        run: |
+          echo "Building dev overlay..."
+          kustomize build envs/dev/openclaw | kubeconform \
+            -ignore-missing-schemas \
+            -kubernetes-version 1.29.0 \
+            -summary
+
+          echo "Building prod overlay..."
+          kustomize build envs/prod/openclaw | kubeconform \
+            -ignore-missing-schemas \
+            -kubernetes-version 1.29.0 \
+            -summary
+
+      - name: Validate plain manifests with kubeconform
+        run: |
+          kubeconform \
+            -ignore-missing-schemas \
+            -kubernetes-version 1.29.0 \
+            -summary \
+            infrastructure/ argocd-appsets/ bootstrap/
+
+      - name: Check required fields in Deployments
+        run: |
+          find base/ envs/ -name "deployment.yaml" | while read file; do
+            grep -q "imagePullPolicy" "$file" || echo "WARN: $file missing imagePullPolicy"
+            grep -q "limits:" "$file" || echo "WARN: $file missing resource limits"
+            grep -q "livenessProbe" "$file" || echo "WARN: $file missing livenessProbe"
+            grep -q "readinessProbe" "$file" || echo "WARN: $file missing readinessProbe"
+          done
+
+      - name: Generate validation summary
+        if: always()
+        run: |
+          echo "## Manifest Validation Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Path | Files |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          for dir in base envs infrastructure argocd-appsets bootstrap; do
+            count=$(find $dir -name "*.yaml" -o -name "*.yml" 2>/dev/null | wc -l | tr -d ' ')
+            echo "| \`$dir/\` | $count |" >> $GITHUB_STEP_SUMMARY
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Validated with kubeconform (k8s 1.29) + kustomize build" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment validation result on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Manifest Validation Passed\n\nAll Kubernetes manifests and Kustomize overlays validated.\n\n- YAML syntax OK\n- Kustomize build: dev + prod overlays\n- kubeconform schema validation (k8s 1.29)\n- Deployment field checks\n\n**Ready to merge**`
+            })

@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: dev
+
+resources:
+  - ../../../base/openclaw
+  - ingress.yaml
+
+images:
+  - name: ghcr.io/surfside-labs/openclaw
+    newTag: dev-latest
+
+patches:
+  # Lighter resource footprint for dev
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 256Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 1Gi
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: development
+    target:
+      kind: Deployment
+      name: openclaw

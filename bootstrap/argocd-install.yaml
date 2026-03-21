@@ -1,0 +1,13 @@
+# Bootstrap: ArgoCD install manifest (already applied manually)
+# Version pinned to v2.14.9
+# Re-apply with: kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.14.9/manifests/install.yaml
+# This file serves as documentation of the version in use.
+# ArgoCD manages its own upgrades via the infrastructure/argocd Application after bootstrap.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-version
+  namespace: argocd
+data:
+  version: "v2.14.9"
+  installed: "2026-03-21"

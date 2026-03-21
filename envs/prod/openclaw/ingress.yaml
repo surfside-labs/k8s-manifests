@@ -1,0 +1,36 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: openclaw-https
+  namespace: prod
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: Host(`openclaw.ssl.local`) && PathPrefix(`/bridge`)
+      priority: 20
+      services:
+        - name: openclaw
+          port: 18790
+    - kind: Rule
+      match: Host(`openclaw.ssl.local`)
+      priority: 10
+      services:
+        - name: openclaw
+          port: 18789
+  tls:
+    secretName: openclaw-prod-tls
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: openclaw-prod-tls
+  namespace: prod
+spec:
+  secretName: openclaw-prod-tls
+  issuerRef:
+    name: ssl-local-ca
+    kind: ClusterIssuer
+  dnsNames:
+    - openclaw.ssl.local

@@ -1,0 +1,36 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-issuer
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ssl-local-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: ssl.local
+  secretName: ssl-local-ca-key-pair
+  duration: 87600h
+  renewBefore: 720h
+  subject:
+    organizations:
+      - Surfside Labs
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: selfsigned-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: ssl-local-ca
+spec:
+  ca:
+    secretName: ssl-local-ca-key-pair

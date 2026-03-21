@@ -1,0 +1,76 @@
+name: Auto-merge Deployment PRs
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    branches: [main]
+
+jobs:
+  auto-merge:
+    name: Auto-merge Validated Deployment PR
+    runs-on: ubuntu-latest
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'automated') &&
+      contains(github.event.pull_request.labels.*.name, 'deployment')
+    
+    steps:
+      - name: Check PR author
+        id: check-author
+        run: |
+          # Only auto-merge PRs from GitHub Actions
+          if [[ "${{ github.event.pull_request.user.login }}" == "github-actions[bot]" ]] || \
+             [[ "${{ github.event.pull_request.user.login }}" == *"[bot]" ]]; then
+            echo "authorized=true" >> $GITHUB_OUTPUT
+            echo "✅ PR is from an authorized bot"
+          else
+            echo "authorized=false" >> $GITHUB_OUTPUT
+            echo "⚠️  PR is not from an authorized bot, skipping auto-merge"
+          fi
+      
+      - name: Wait for status checks
+        if: steps.check-author.outputs.authorized == 'true'
+        uses: lewagon/wait-on-check-action@v1.3.3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          check-name: 'Validate Kubernetes Manifests'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10
+          allowed-conclusions: success
+      
+      - name: Approve PR
+        if: steps.check-author.outputs.authorized == 'true'
+        uses: hmarr/auto-approve-action@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Enable auto-merge
+        if: steps.check-author.outputs.authorized == 'true'
+        run: |
+          gh pr merge --auto --squash "${{ github.event.pull_request.number }}" \
+            --subject "chore: auto-merge deployment PR #${{ github.event.pull_request.number }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Add merge comment
+        if: steps.check-author.outputs.authorized == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🤖 Auto-merge Enabled\n\nThis deployment PR has been automatically approved and will merge when all checks pass.\n\n### Next Steps:\n1. ⏳ Waiting for all status checks to complete\n2. 🔀 Auto-merge when checks pass\n3. 🚀 ArgoCD will sync changes to cluster (auto-sync enabled)\n4. ✅ Deployment complete\n\n---\n*Automated by deployment pipeline*`
+            })
+      
+      - name: Notify if not authorized
+        if: steps.check-author.outputs.authorized != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ⚠️ Auto-merge Skipped\n\nThis PR was not created by an authorized bot and requires manual review.\n\n**Author**: @${{ github.event.pull_request.user.login }}\n\nPlease review and merge manually if appropriate.`
+            })

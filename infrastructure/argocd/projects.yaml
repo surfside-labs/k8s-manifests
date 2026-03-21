@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Development environment — auto-sync on merge to develop
+  sourceRepos:
+    - https://github.com/surfside-labs/k8s-manifests
+    - https://github.com/surfside-labs/*
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: dev
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: prod
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Production environment — manual sync via ArgoCD UI or CLI
+  sourceRepos:
+    - https://github.com/surfside-labs/k8s-manifests
+    - https://github.com/surfside-labs/*
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: prod
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
