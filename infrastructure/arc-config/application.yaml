@@ -1,0 +1,27 @@
+# ARC GitHub App secret — applied before the runner scale set.
+# infrastructure-appset discovers this and creates an Application that applies
+# infra-arc-config, which syncs the SealedSecret to the arc-runners namespace.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: infra-arc-config
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/surfside-labs/k8s-manifests
+    targetRevision: main
+    path: infrastructure/arc
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: arc-runners
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
