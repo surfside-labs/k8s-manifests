@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: apps-prod
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - git:
+        repoURL: https://github.com/surfside-labs/k8s-manifests
+        revision: main
+        directories:
+          - path: envs/prod/*
+  template:
+    metadata:
+      name: '{{ .path.basename }}-prod'
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: prod
+      source:
+        repoURL: https://github.com/surfside-labs/k8s-manifests
+        targetRevision: main
+        path: 'envs/prod/{{ .path.basename }}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: prod
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 2m
