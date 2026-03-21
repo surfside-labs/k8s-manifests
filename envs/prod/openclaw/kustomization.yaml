@@ -10,4 +10,4 @@ resources:
 
 images:
   - name: ghcr.io/surfside-labs/openclaw
-    newTag: main-latest
+    newTag: main-94730a3

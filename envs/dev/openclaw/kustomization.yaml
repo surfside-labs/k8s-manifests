@@ -10,7 +10,7 @@ resources:
 
 images:
   - name: ghcr.io/surfside-labs/openclaw
-    newTag: dev-latest
+    newTag: latest
 
 patches:
   # Lighter resource footprint for dev
