@@ -1,4 +1,4 @@
-# Actions Runner Controller — installed after GitHub App/PAT is configured
+# Actions Runner Controller — installed after GitHub App is configured.
 # See: docs/DevOps/Runner Strategy.md for setup steps
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -10,9 +10,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://actions-runner-controller.github.io/actions-runner-controller
+    repoURL: ghcr.io/actions/actions-runner-controller-charts
     chart: gha-runner-scale-set-controller
-    targetRevision: 0.10.1
+    targetRevision: 0.14.0
     helm:
       valuesObject:
         resources:
