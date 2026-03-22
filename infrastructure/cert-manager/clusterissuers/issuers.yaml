@@ -12,7 +12,7 @@ metadata:
   namespace: cert-manager
 spec:
   isCA: true
-  commonName: ssl.local
+  commonName: surfside-labs.com
   secretName: ssl-local-ca-key-pair
   duration: 87600h
   renewBefore: 720h

@@ -8,13 +8,13 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: Host(`openclaw.ssl.local`) && PathPrefix(`/bridge`)
+      match: Host(`openclaw.surfside-labs.com`) && PathPrefix(`/bridge`)
       priority: 20
       services:
         - name: openclaw
           port: 18790
     - kind: Rule
-      match: Host(`openclaw.ssl.local`)
+      match: Host(`openclaw.surfside-labs.com`)
       priority: 10
       services:
         - name: openclaw
@@ -33,4 +33,4 @@ spec:
     name: ssl-local-ca
     kind: ClusterIssuer
   dnsNames:
-    - openclaw.ssl.local
+    - openclaw.surfside-labs.com
