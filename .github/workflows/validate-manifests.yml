@@ -64,6 +64,7 @@ jobs:
         run: |
           kubeconform \
             -ignore-missing-schemas \
+            -ignore-filename-pattern "values.*\.ya?ml" \
             -kubernetes-version 1.32.0 \
             -summary \
             infrastructure/ argocd-appsets/ bootstrap/
