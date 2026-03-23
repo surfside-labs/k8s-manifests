@@ -49,6 +49,19 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: arc-runners
+  ignoreDifferences:
+    - group: actions.github.com
+      kind: AutoscalingListener
+      jsonPointers:
+        - /spec
+    - group: rbac.authorization.k8s.io
+      kind: Role
+      jqPathExpressions:
+        - .metadata.name | select(test("listener$"))
+    - group: rbac.authorization.k8s.io
+      kind: RoleBinding
+      jqPathExpressions:
+        - .metadata.name | select(test("listener$"))
   syncPolicy:
     automated:
       prune: true
@@ -56,3 +69,4 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
