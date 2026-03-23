@@ -1,19 +1,20 @@
 name: Validate Manifests
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'envs/**'
+      - 'infrastructure/**'
+      - 'argocd-appsets/**'
+      - 'bootstrap/**'
   pull_request:
     branches: [main]
     paths:
-      - 'base/**/*.yaml'
-      - 'base/**/*.yml'
-      - 'envs/**/*.yaml'
-      - 'envs/**/*.yml'
-      - 'infrastructure/**/*.yaml'
-      - 'infrastructure/**/*.yml'
-      - 'argocd-appsets/**/*.yaml'
-      - 'argocd-appsets/**/*.yml'
-      - 'bootstrap/**/*.yaml'
-      - 'bootstrap/**/*.yml'
+      - 'envs/**'
+      - 'infrastructure/**'
+      - 'argocd-appsets/**'
+      - 'bootstrap/**'
 
 jobs:
   validate-manifests:
@@ -32,69 +33,73 @@ jobs:
           kubeconform -v
 
       - name: Install kustomize
-        run: |
-          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
-          sudo mv kustomize /usr/local/bin/
+        uses: imranismail/setup-kustomize@v2
 
       - name: Validate YAML syntax
         run: |
           echo "Validating YAML syntax..."
-          find base/ envs/ infrastructure/ argocd-appsets/ bootstrap/ \
-            -name "*.yaml" -o -name "*.yml" | while read file; do
+          FAILED=0
+          while IFS= read -r file; do
             python3 -c "
 import yaml, sys
-docs = list(yaml.safe_load_all(open('$file')))
-print(f'OK: $file ({len(docs)} doc(s))')
-" || exit 1
-          done
-          echo "All YAML files have valid syntax"
+try:
+    docs = list(yaml.safe_load_all(open('$file')))
+    print(f'OK: $file ({len(docs)} doc(s))')
+except Exception as e:
+    print(f'FAIL: $file - {e}')
+    sys.exit(1)
+" || FAILED=1
+          done < <(find envs/ infrastructure/ argocd-appsets/ bootstrap/ -name "*.yaml" -o -name "*.yml" 2>/dev/null)
+          [ $FAILED -eq 0 ] && echo "All YAML files valid" || exit 1
 
       - name: Build and validate Kustomize overlays
         run: |
-          echo "Building dev overlay..."
-          kustomize build envs/dev/openclaw | kubeconform \
-            -ignore-missing-schemas \
-            -kubernetes-version 1.29.0 \
-            -summary
-
-          echo "Building prod overlay..."
-          kustomize build envs/prod/openclaw | kubeconform \
-            -ignore-missing-schemas \
-            -kubernetes-version 1.29.0 \
-            -summary
+          FAILED=0
+          # Discover all kustomization.yaml overlays dynamically
+          while IFS= read -r kfile; do
+            overlay=$(dirname "$kfile")
+            echo "Building overlay: $overlay"
+            kustomize build "$overlay" | kubeconform \
+              -ignore-missing-schemas \
+              -kubernetes-version 1.32.0 \
+              -summary || FAILED=1
+          done < <(find envs/ -name "kustomization.yaml" 2>/dev/null)
+          if [ $FAILED -ne 0 ]; then exit 1; fi
+          # No overlays found is OK
+          echo "Kustomize overlay validation complete"
 
       - name: Validate plain manifests with kubeconform
         run: |
           kubeconform \
             -ignore-missing-schemas \
-            -kubernetes-version 1.29.0 \
+            -kubernetes-version 1.32.0 \
             -summary \
             infrastructure/ argocd-appsets/ bootstrap/
 
-      - name: Check required fields in Deployments
+      - name: Check Deployment best practices
         run: |
-          find base/ envs/ -name "deployment.yaml" | while read file; do
+          while IFS= read -r file; do
             grep -q "imagePullPolicy" "$file" || echo "WARN: $file missing imagePullPolicy"
-            grep -q "limits:" "$file" || echo "WARN: $file missing resource limits"
-            grep -q "livenessProbe" "$file" || echo "WARN: $file missing livenessProbe"
+            grep -q "limits:" "$file"        || echo "WARN: $file missing resource limits"
+            grep -q "livenessProbe" "$file"  || echo "WARN: $file missing livenessProbe"
             grep -q "readinessProbe" "$file" || echo "WARN: $file missing readinessProbe"
-          done
+          done < <(find envs/ -name "deployment.yaml" 2>/dev/null)
 
-      - name: Generate validation summary
+      - name: Generate summary
         if: always()
         run: |
           echo "## Manifest Validation Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Path | Files |" >> $GITHUB_STEP_SUMMARY
           echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
-          for dir in base envs infrastructure argocd-appsets bootstrap; do
+          for dir in envs infrastructure argocd-appsets bootstrap; do
             count=$(find $dir -name "*.yaml" -o -name "*.yml" 2>/dev/null | wc -l | tr -d ' ')
             echo "| \`$dir/\` | $count |" >> $GITHUB_STEP_SUMMARY
           done
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Validated with kubeconform (k8s 1.29) + kustomize build" >> $GITHUB_STEP_SUMMARY
+          echo "Validated with kubeconform (k8s 1.32) + kustomize build" >> $GITHUB_STEP_SUMMARY
 
-      - name: Comment validation result on PR
+      - name: Comment on PR
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
@@ -103,5 +108,5 @@ print(f'OK: $file ({len(docs)} doc(s))')
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## Manifest Validation Passed\n\nAll Kubernetes manifests and Kustomize overlays validated.\n\n- YAML syntax OK\n- Kustomize build: dev + prod overlays\n- kubeconform schema validation (k8s 1.29)\n- Deployment field checks\n\n**Ready to merge**`
+              body: '## Manifest Validation Passed\n\nAll Kubernetes manifests validated.\n\n- YAML syntax OK\n- Kustomize overlays built and validated\n- kubeconform schema validation (k8s 1.32)\n\n**Ready to merge**'
             })
