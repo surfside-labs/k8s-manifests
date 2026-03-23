@@ -8,6 +8,7 @@ on:
       - 'infrastructure/**'
       - 'argocd-appsets/**'
       - 'bootstrap/**'
+      - '.github/workflows/**'
   pull_request:
     branches: [main]
     paths:
@@ -15,6 +16,7 @@ on:
       - 'infrastructure/**'
       - 'argocd-appsets/**'
       - 'bootstrap/**'
+      - '.github/workflows/**'
 
 jobs:
   validate-manifests:
@@ -37,25 +39,16 @@ jobs:
 
       - name: Validate YAML syntax
         run: |
+          pip install --quiet yamllint
           echo "Validating YAML syntax..."
-          FAILED=0
-          while IFS= read -r file; do
-            python3 -c "
-import yaml, sys
-try:
-    docs = list(yaml.safe_load_all(open('$file')))
-    print(f'OK: $file ({len(docs)} doc(s))')
-except Exception as e:
-    print(f'FAIL: $file - {e}')
-    sys.exit(1)
-" || FAILED=1
-          done < <(find envs/ infrastructure/ argocd-appsets/ bootstrap/ -name "*.yaml" -o -name "*.yml" 2>/dev/null)
-          [ $FAILED -eq 0 ] && echo "All YAML files valid" || exit 1
+          find envs/ infrastructure/ argocd-appsets/ bootstrap/ \
+            \( -name "*.yaml" -o -name "*.yml" \) 2>/dev/null \
+            | xargs yamllint -d "{extends: relaxed, rules: {line-length: disable}}"
+          echo "All YAML files valid"
 
       - name: Build and validate Kustomize overlays
         run: |
           FAILED=0
-          # Discover all kustomization.yaml overlays dynamically
           while IFS= read -r kfile; do
             overlay=$(dirname "$kfile")
             echo "Building overlay: $overlay"
@@ -65,7 +58,6 @@ except Exception as e:
               -summary || FAILED=1
           done < <(find envs/ -name "kustomization.yaml" 2>/dev/null)
           if [ $FAILED -ne 0 ]; then exit 1; fi
-          # No overlays found is OK
           echo "Kustomize overlay validation complete"
 
       - name: Validate plain manifests with kubeconform
@@ -80,9 +72,9 @@ except Exception as e:
         run: |
           while IFS= read -r file; do
             grep -q "imagePullPolicy" "$file" || echo "WARN: $file missing imagePullPolicy"
-            grep -q "limits:" "$file"        || echo "WARN: $file missing resource limits"
-            grep -q "livenessProbe" "$file"  || echo "WARN: $file missing livenessProbe"
-            grep -q "readinessProbe" "$file" || echo "WARN: $file missing readinessProbe"
+            grep -q "limits:" "$file"         || echo "WARN: $file missing resource limits"
+            grep -q "livenessProbe" "$file"   || echo "WARN: $file missing livenessProbe"
+            grep -q "readinessProbe" "$file"  || echo "WARN: $file missing readinessProbe"
           done < <(find envs/ -name "deployment.yaml" 2>/dev/null)
 
       - name: Generate summary
